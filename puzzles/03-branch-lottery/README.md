@@ -15,7 +15,7 @@ branch. The fixed version uses a mask.
 ## Suggested workflow
 
 1. Compare runtimes and verify matching checksums.
-2. Run `../../pmystery.py perf-stat 03 bad`.
+2. Run `ptf perf-stat 03 bad`.
 3. Compare the default `branches` and `branch-misses` counters with the fixed
    version. If your `perf` build omits them, run
    `perf stat -e branches,branch-misses -- build/03/bad` directly.

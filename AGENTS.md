@@ -20,9 +20,11 @@ The MVP uses only Python's standard library plus system tools:
 
 ## Main entry points
 
-- `pmystery.py`: CLI, puzzle metadata, build logic, profiling commands, quizzes,
-  and journal creation.
-- `Makefile`: builds all puzzles through `pmystery.py`.
+- `ptf`: primary standalone CLI, puzzle metadata, build logic, profiling
+  commands, quizzes, and journal creation.
+- `pmystery.py`: compatibility shim for the original command name.
+- `Makefile`: builds all puzzles through `ptf` and can install it to
+  `~/.local/bin`.
 - `README.md`: user-facing setup, workflow, examples, and architecture notes.
 - `puzzles/`: source code and lesson material.
 - `build/`: generated binaries; ignored by Git.
@@ -31,18 +33,18 @@ The MVP uses only Python's standard library plus system tools:
 Supported CLI commands:
 
 ```text
-./pmystery.py list
-./pmystery.py build <id>
-./pmystery.py run <id> <bad|fixed>
-./pmystery.py compare <id>
-./pmystery.py strace <id> <bad|fixed>
-./pmystery.py perf-stat <id> <bad|fixed>
-./pmystery.py perf-record <id> <bad|fixed>
-./pmystery.py lesson <id>
-./pmystery.py hint <id> [level]
-./pmystery.py diagnose <id>
-./pmystery.py journal <id> <bad|fixed>
-./pmystery.py reveal <id>
+ptf list
+ptf build <id>
+ptf run <id> <bad|fixed>
+ptf compare <id>
+ptf strace <id> <bad|fixed>
+ptf perf-stat <id> <bad|fixed>
+ptf perf-record <id> <bad|fixed>
+ptf lesson <id>
+ptf hint <id> [level]
+ptf diagnose <id>
+ptf journal <id> <bad|fixed>
+ptf reveal <id>
 ```
 
 Puzzle IDs accept `1`, `01`, or the full directory slug.
@@ -89,9 +91,9 @@ Run:
 ```sh
 make clean
 make
-./pmystery.py compare 01
-./pmystery.py compare 02
-./pmystery.py compare 03
+ptf compare 01
+ptf compare 02
+ptf compare 03
 ```
 
 The project was validated on macOS for compilation/basic behavior and on the
@@ -122,7 +124,7 @@ kernel, compiler, and flags when comparing systems.
 ## Development guidelines
 
 - Keep the CLI readable and standard-library only.
-- Store puzzle-specific metadata and quiz answers in `PUZZLES` in `pmystery.py`.
+- Store puzzle-specific metadata and quiz answers in `PUZZLES` in `ptf`.
 - Add new puzzles using the existing directory layout and bad/fixed contract.
 - Do not commit generated inputs, binaries, profiling data, or lab journals.
 - Do not overwrite an existing journal.

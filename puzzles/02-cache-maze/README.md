@@ -16,11 +16,10 @@ checksum.
 
 1. Predict what `strace -c` will show.
 2. Compare wall-clock runtimes.
-3. Run `../../pmystery.py perf-stat 02 bad`.
-4. Collect samples with `../../pmystery.py perf-record 02 bad`.
+3. Run `ptf perf-stat 02 bad`.
+4. Collect samples with `ptf perf-record 02 bad`.
 5. Compare IPC and available cache/TLB counters with the fixed version.
 
 Follow:
 
 `hypothesis -> tool -> evidence -> diagnosis -> fix -> validation`
-

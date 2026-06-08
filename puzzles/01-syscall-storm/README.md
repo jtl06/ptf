@@ -15,13 +15,12 @@ work, or crossing into the kernel too often?
 
 ## Suggested workflow
 
-1. Run `../../pmystery.py journal 01 bad`.
+1. Run `ptf journal 01 bad`.
 2. Compare the two runtimes.
-3. Use `../../pmystery.py strace 01 bad`.
+3. Use `ptf strace 01 bad`.
 4. Record the dominant syscall and its call count.
 5. Profile the fixed version and validate what changed.
 
 The useful loop is:
 
 `hypothesis -> tool -> evidence -> diagnosis -> fix -> validation`
-

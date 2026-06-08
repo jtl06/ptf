@@ -11,18 +11,6 @@ The point is not merely to benchmark two binaries. Work through the full loop:
 Write down what you expect before collecting data. Pick a tool that can test
 that expectation. Explain the evidence before looking at the fixed version.
 
-## `strace` and `perf` answer different questions
-
-`strace` observes the boundary between a process and the kernel. It is useful
-when you suspect excessive system calls, blocking I/O, repeated file access, or
-unexpected errors. `strace -c` summarizes call counts and time.
-
-`perf` observes CPU execution. `perf stat` counts events such as cycles,
-instructions, cache behavior, and branch misses. `perf record` samples where
-time is spent, and `perf report` attributes those samples to functions and call
-stacks. A CPU-bound program can have a nearly empty `strace` summary and still
-perform badly because its data layout or branch behavior fights the hardware.
-
 ## Requirements
 
 - Linux
@@ -43,20 +31,32 @@ Build every puzzle:
 make
 ```
 
+Run the CLI directly from the checkout as `./ptf`. To install it as the `ptf`
+command for the current user:
+
+```sh
+make install
+```
+
+This installs to `~/.local/bin/ptf` by default. Ensure `~/.local/bin` is on
+`PATH`, or override the location with `make install PREFIX=/another/path`. The
+installed command is a symlink to this checkout, so move or remove the checkout
+only after reinstalling from its new location.
+
 Explore a lesson:
 
 ```sh
-./pmystery.py list
-./pmystery.py lesson 01
-./pmystery.py journal 01 bad
-./pmystery.py run 01 bad
-./pmystery.py compare 01
-./pmystery.py strace 01 bad
-./pmystery.py perf-stat 02 bad
-./pmystery.py perf-record 02 bad
+ptf list
+ptf lesson 01
+ptf journal 01 bad
+ptf run 01 bad
+ptf compare 01
+ptf strace 01 bad
+ptf perf-stat 02 bad
+ptf perf-record 02 bad
 perf report -i runs/02/bad/perf.data
-./pmystery.py diagnose 03
-./pmystery.py reveal 01
+ptf diagnose 03
+ptf reveal 01
 ```
 
 Puzzle IDs may be written as `01`, `1`, or the full directory slug such as
