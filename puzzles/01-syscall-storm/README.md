@@ -2,8 +2,8 @@
 
 ## Learning objective
 
-Learn when `strace` is more useful than `perf`, and recognize syscall overhead
-caused by tiny I/O operations.
+Use `strace` to identify syscall overhead caused by tiny I/O operations. Connect
+the number of `read()` calls to the program's buffer size and runtime.
 
 ## Scenario
 
@@ -16,10 +16,11 @@ work, or crossing into the kernel too often?
 ## Suggested workflow
 
 1. Run `ptf journal 01 bad`.
-2. Compare the two runtimes.
-3. Use `ptf strace 01 bad`.
-4. Record the dominant syscall and its call count.
-5. Profile the fixed version and validate what changed.
+2. Run the slow program with `ptf 01 bad`.
+3. Write down the syscall pattern you expect.
+4. Use `ptf strace 01 bad`.
+5. Record the dominant syscall and its call count.
+6. Run `ptf compare 01` and profile the fixed version.
 
 The useful loop is:
 

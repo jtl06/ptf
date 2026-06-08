@@ -49,6 +49,12 @@ ptf reveal <id>
 
 Puzzle IDs accept `1`, `01`, or the full directory slug.
 
+Puzzle-first shortcuts are supported:
+
+- `ptf 01` expands to `ptf lesson 01`.
+- `ptf 01 bad` expands to `ptf run 01 bad`.
+- `ptf 01 fixed` expands to `ptf run 01 fixed`.
+
 ## Puzzles
 
 ### 01: Syscall Storm

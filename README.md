@@ -131,15 +131,21 @@ You can also run `./ptf` directly from the checkout.
 
 ```sh
 ptf list
-ptf lesson 01
+ptf 01
 ptf journal 01 bad
-ptf run 01 bad
+ptf 01 bad
 ptf strace 01 bad
 ptf diagnose 01
 ptf compare 01
 ptf strace 01 fixed
 ptf reveal 01
 ```
+
+The puzzle-first shortcuts expand to the full commands:
+
+- `ptf 01` runs `ptf lesson 01`.
+- `ptf 01 bad` runs `ptf run 01 bad`.
+- `ptf 01 fixed` runs `ptf run 01 fixed`.
 
 For CPU and memory analysis:
 

@@ -20,7 +20,7 @@ PUZZLES = {
         "slug": "01-syscall-storm",
         "name": "Syscall Storm",
         "category": "syscall overhead",
-        "objective": "Learn when strace is more useful than perf.",
+        "objective": "Use strace to identify syscall overhead from tiny I/O operations.",
         "language": "c",
         "input": "input/data.txt",
         "quiz": [
@@ -434,7 +434,7 @@ def command_journal(args: argparse.Namespace) -> None:
     puzzle_id = resolve_id(args.id)
     destination = variant_run_dir(puzzle_id, args.variant) / "lab.md"
     if destination.exists():
-        print(f"Journal already exists; left it unchanged: {destination.relative_to(ROOT)}")
+        print(f"Continue your existing journal: {destination.relative_to(ROOT)}")
         return
     destination.write_text(JOURNAL_TEMPLATE.format(puzzle_id=puzzle_id), encoding="utf-8")
     print(f"Created {destination.relative_to(ROOT)}")
@@ -450,6 +450,10 @@ def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ptf",
         description="Build, profile, and diagnose Linux performance puzzles.",
+        epilog=(
+            "Shortcuts: 'ptf 01' shows lesson 01; "
+            "'ptf 01 bad' runs its bad variant."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -495,9 +499,23 @@ def make_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def expand_shorthand(argv: list[str]) -> list[str]:
+    if not argv:
+        return argv
+    try:
+        puzzle_id = resolve_id(argv[0])
+    except LabError:
+        return argv
+    if len(argv) == 1:
+        return ["lesson", puzzle_id]
+    if len(argv) == 2 and argv[1] in ("bad", "fixed"):
+        return ["run", puzzle_id, argv[1]]
+    return argv
+
+
 def main() -> int:
     parser = make_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(expand_shorthand(sys.argv[1:]))
     try:
         args.handler(args)
     except LabError as exc:
