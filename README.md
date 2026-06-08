@@ -1,15 +1,102 @@
 # perf-mystery
 
-`perf-mystery` is a small local CTF-style lab for learning Linux performance
-debugging. Each puzzle contains a deliberately slow program, an equivalent
-faster version, progressive hints, a diagnosis quiz, and an explanation.
+`perf-mystery` is a local CTF-style lab for learning Linux performance
+debugging. Each puzzle gives you a slow program, profiling tools, progressive
+hints, and an equivalent optimized version.
 
-The point is not merely to benchmark two binaries. Work through the full loop:
+The lab develops a repeatable investigation process:
 
 > hypothesis -> tool -> evidence -> diagnosis -> fix -> validation
 
-Write down what you expect before collecting data. Pick a tool that can test
-that expectation. Explain the evidence before looking at the fixed version.
+The goal is to explain why a program is slow using observable evidence. Runtime
+establishes the symptom. Tool output supports the diagnosis. The fixed version
+tests whether the predicted behavior and metric improve.
+
+## Learning objectives
+
+After completing the puzzles, you should be able to:
+
+- Form a specific performance hypothesis before collecting data.
+- Select `strace`, `perf stat`, or `perf record` based on that hypothesis.
+- Separate syscall-heavy behavior from CPU and memory bottlenecks.
+- Interpret syscall counts, IPC, cache symptoms, and branch-miss rates.
+- Connect profiler output to a source-level cause.
+- Predict which metric should change after a fix.
+- Validate that an optimization preserves program results.
+- Record an investigation clearly enough for another person to reproduce it.
+
+The puzzles emphasize tool selection as much as tool operation. A useful
+profiling command answers a specific question:
+
+- How often does the program enter the kernel?
+- How efficiently does the CPU retire instructions?
+- Where are samples concentrated?
+- Does the optimized version improve the expected metric?
+
+## Puzzles
+
+### 01: Syscall Storm
+
+**Objective:** Recognize syscall overhead and use `strace -c` to quantify it.
+
+The program counts newlines in a generated text file. The slow version reads one
+byte per syscall. The optimized version reads 64 KiB at a time.
+
+Look for:
+
+- The total number of `read()` calls.
+- The relationship between input size and syscall count.
+- The change in syscall count after buffering.
+
+### 02: Cache Maze
+
+**Objective:** Recognize poor memory locality and dependent pointer chasing in
+`perf` evidence.
+
+The slow version traverses a randomized linked structure. The optimized version
+performs equivalent work over contiguous storage.
+
+Look for:
+
+- Runtime and instructions per cycle.
+- Available cache and TLB symptoms.
+- Samples concentrated in the traversal loop.
+- Quiet syscall activity during expensive user-space work.
+
+### 03: Branch Lottery
+
+**Objective:** Measure unpredictable branches and validate a branchless
+equivalent.
+
+The slow version branches on deterministic pseudo-random data. The optimized
+version uses a mask to compute the same result.
+
+Look for:
+
+- `branches` and `branch-misses`.
+- Branch misses as a percentage of branch instructions.
+- Matching checksums across both implementations.
+- The expected counter change after removing the data-dependent branch.
+
+## Lab workflow
+
+1. Read the lesson with `ptf lesson <id>`.
+2. Create notes with `ptf journal <id> bad`.
+3. Write down a bottleneck hypothesis and the evidence you expect.
+4. Run the slow version to capture its runtime and checksum.
+5. Choose a profiling command that tests the hypothesis.
+6. Record the decisive metrics or output patterns.
+7. Complete the diagnosis quiz before reading the answer.
+8. Compare the optimized version and inspect the predicted metric.
+9. Write a takeaway that connects source code, evidence, and hardware behavior.
+
+Progressive hints preserve the investigation:
+
+```sh
+ptf hint 02
+ptf hint 02 2
+ptf hint 02 3
+```
 
 ## Requirements
 
@@ -19,83 +106,83 @@ that expectation. Explain the evidence before looking at the fixed version.
 - `strace` for syscall exercises
 - Linux `perf` for hardware counters and sampling
 
-The CLI detects missing profiling tools. Some systems also restrict `perf`
-through `/proc/sys/kernel/perf_event_paranoid` or container capabilities; the
-CLI reports that case without a Python traceback.
+The CLI detects missing tools and reports common `perf` permission restrictions,
+including `perf_event_paranoid` and unavailable PMU events.
 
-## Quick start
+## Setup
 
-Build every puzzle:
+From the repository root:
 
 ```sh
 make
-```
-
-Run the CLI directly from the checkout as `./ptf`. To install it as the `ptf`
-command for the current user:
-
-```sh
 make install
 ```
 
-This installs to `~/.local/bin/ptf` by default. Ensure `~/.local/bin` is on
-`PATH`, or override the location with `make install PREFIX=/another/path`. The
-installed command is a symlink to this checkout, so move or remove the checkout
-only after reinstalling from its new location.
+`make install` creates `~/.local/bin/ptf` as a symlink to the checkout. Ensure
+`~/.local/bin` is on `PATH`. You can choose another prefix:
 
-Explore a lesson:
+```sh
+make install PREFIX=/another/path
+```
+
+You can also run `./ptf` directly from the checkout.
+
+## Example session
 
 ```sh
 ptf list
 ptf lesson 01
 ptf journal 01 bad
 ptf run 01 bad
-ptf compare 01
 ptf strace 01 bad
-ptf perf-stat 02 bad
-ptf perf-record 02 bad
-perf report -i runs/02/bad/perf.data
-ptf diagnose 03
+ptf diagnose 01
+ptf compare 01
+ptf strace 01 fixed
 ptf reveal 01
 ```
 
-Puzzle IDs may be written as `01`, `1`, or the full directory slug such as
-`01-syscall-storm`.
+For CPU and memory analysis:
+
+```sh
+ptf perf-stat 02 bad
+ptf perf-record 02 bad
+perf report -i runs/02/bad/perf.data
+```
+
+Puzzle IDs accept `1`, `01`, or a full slug such as `01-syscall-storm`.
 
 Generated binaries live under `build/`. Profiling evidence and lab notes live
-under `runs/`. Puzzle 01 generates its deterministic input file on first build;
-that large file is ignored by Git.
+under `runs/`. Puzzle 01 creates its deterministic input during the first
+build. Generated inputs and run artifacts are excluded from Git.
 
-## Suggested lab workflow
+## Comparing systems
 
-1. Run `lesson` and create a `journal`.
-2. State a concrete bottleneck hypothesis.
-3. Run the bad program once to establish runtime and checksum.
-4. Choose `strace`, `perf stat`, or `perf record` based on the hypothesis.
-5. Record the decisive output pattern in the journal.
-6. Take the `diagnose` quiz before revealing the answer.
-7. Run `compare` and profile the fixed version to validate the expected metric.
+The puzzle sources build on x86-64 and AArch64 with GCC. This makes the same
+investigation useful across Intel, AMD, Graviton 3, and Graviton 4 systems.
 
-Benchmark timing varies by CPU, kernel, virtualization, and system load. Treat
-the counters and relative behavior as evidence, not as universal fixed numbers.
+Record the following context before comparing results:
 
-## Comparing x86 and Arm
+- CPU model and architecture
+- Kernel version
+- Compiler version and flags
+- Virtual machine or container environment
+- `perf_event_paranoid` value
+- Available PMU events
 
-The puzzle sources build unchanged on x86-64 and AArch64 with GCC. Run the same
-lab sequence on each machine, but do not expect identical event counts. Intel,
-AMD, Graviton 3, and Graviton 4 expose different PMUs, and virtual machines may
-restrict some events. Start with portable `perf stat -d` metrics such as cycles,
-instructions, IPC, branches, and branch misses. Record the CPU model, kernel,
-compiler version, and compiler flags in the journal before comparing systems.
+Event names, counts, and availability vary across processors and virtualized
+environments. Start with portable categories such as cycles, instructions, IPC,
+branches, and branch misses. Compare each slow version with its optimized
+version on the same system.
 
-The diagnosis should survive the architecture change: syscall storm still means
-too many `read()` calls, cache maze still means serialized poor-locality loads,
-and branch lottery still means a high branch-miss rate in the bad version.
+The expected diagnosis remains stable across architectures:
 
-## Future collector backends
+- Syscall Storm produces excessive `read()` calls.
+- Cache Maze serializes poor-locality memory accesses.
+- Branch Lottery creates difficult-to-predict branch outcomes.
 
-The CLI currently invokes Linux `strace` and `perf` directly. A later version
-could define a small collector interface and add an Arm Performix backend for
-Arm-specific guided analysis. That backend could collect Arm PMU events,
-normalize them into the same evidence files, and add architecture-specific
-questions without changing the puzzle or journal format.
+## Future direction
+
+A future collector interface could add Arm Performix as a backend for guided
+Arm analysis. It could collect architecture-specific PMU events, write evidence
+into the existing run directories, and provide Graviton-focused questions while
+preserving the same lesson and journal workflow.
