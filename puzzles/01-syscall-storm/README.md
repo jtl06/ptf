@@ -1,27 +1,38 @@
 # Puzzle 01: Syscall Storm
 
-## Learning objective
+## Objective
 
-Use `strace` to identify syscall overhead caused by tiny I/O operations. Connect
-the number of `read()` calls to the program's buffer size and runtime.
+Use `strace` evidence to locate excessive syscall overhead, then optimize the
+C++ implementation.
 
-## Scenario
+## Performance target
 
-Both programs count newline characters in the same deterministic text file and
-print the same result. One is needlessly slow.
+Reach at least **10x speedup** over the starter while printing the same newline
+count.
 
-Start with a hypothesis. Is the program waiting on storage, doing too much CPU
-work, or crossing into the kernel too often?
+## Assignment
 
-## Suggested workflow
+The program counts newline characters in a deterministic text file. The starter
+produces the correct result and takes several seconds on a typical Linux
+machine.
 
-1. Run `ptf journal 01 bad`.
-2. Run the slow program with `ptf 01 bad`.
-3. Write down the syscall pattern you expect.
-4. Use `ptf strace 01 bad`.
-5. Record the dominant syscall and its call count.
-6. Run `ptf compare 01` and profile the fixed version.
+Create your editable solution:
 
-The useful loop is:
+```sh
+ptf start 01
+```
 
-`hypothesis -> tool -> evidence -> diagnosis -> fix -> validation`
+Then investigate and optimize `work/01/solution.cpp`.
+
+## Suggested process
+
+1. Run `ptf 01 work` and record the baseline.
+2. Predict which kernel interaction dominates runtime.
+3. Run `ptf strace 01 work`.
+4. Connect the dominant syscall count to a line of C++.
+5. Edit `work/01/solution.cpp`.
+6. Repeat the run and `strace` measurements.
+7. Submit the result with `ptf check 01`.
+
+Use `ptf hint 01`, `ptf hint 01 2`, and `ptf hint 01 3` when you need a nudge.
+Read `ptf reveal 01` after completing the target.

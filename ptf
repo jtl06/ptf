@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import statistics
 import subprocess
 import sys
 import time
@@ -14,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BUILD_ROOT = ROOT / "build"
 RUNS_ROOT = ROOT / "runs"
+WORK_ROOT = ROOT / "work"
 
 PUZZLES = {
     "01": {
@@ -21,8 +23,10 @@ PUZZLES = {
         "name": "Syscall Storm",
         "category": "syscall overhead",
         "objective": "Use strace to identify syscall overhead from tiny I/O operations.",
-        "language": "c",
+        "language": "cpp",
         "input": "input/data.txt",
+        "target_speedup": 10.0,
+        "profile_command": "strace",
         "quiz": [
             {
                 "question": "What bottleneck category is this?",
@@ -54,6 +58,8 @@ PUZZLES = {
         "category": "memory locality",
         "objective": "Recognize pointer chasing and poor locality in perf evidence.",
         "language": "cpp",
+        "target_speedup": 4.0,
+        "profile_command": "perf-stat",
         "quiz": [
             {
                 "question": "What bottleneck category is this?",
@@ -84,7 +90,9 @@ PUZZLES = {
         "name": "Branch Lottery",
         "category": "branch misprediction",
         "objective": "Identify unpredictable branches with hardware counters.",
-        "language": "c",
+        "language": "cpp",
+        "target_speedup": 1.5,
+        "profile_command": "perf-stat",
         "quiz": [
             {
                 "question": "What bottleneck category is this?",
@@ -136,6 +144,17 @@ def binary_path(puzzle_id: str, variant: str) -> Path:
     return BUILD_ROOT / puzzle_id / variant
 
 
+def source_extension(puzzle_id: str) -> str:
+    return "cpp"
+
+
+def source_path(puzzle_id: str, variant: str) -> Path:
+    extension = source_extension(puzzle_id)
+    if variant == "work":
+        return WORK_ROOT / puzzle_id / f"solution.{extension}"
+    return puzzle_dir(puzzle_id) / "src" / f"{variant}.{extension}"
+
+
 def require_program(name: str, purpose: str) -> str:
     path = shutil.which(name)
     if path is None:
@@ -167,47 +186,44 @@ def ensure_input(puzzle_id: str) -> None:
     run_checked([sys.executable, str(generator), str(destination)])
 
 
-def build_puzzle(puzzle_id: str) -> None:
-    meta = PUZZLES[puzzle_id]
+def compiler_command(puzzle_id: str, source: Path, output: Path) -> list[str]:
+    compiler = require_program("g++", "compile the C++ puzzles")
+    flags = [
+        "-O3",
+        "-fno-omit-frame-pointer",
+        "-std=c++17",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+    ]
+    return [compiler, *flags, str(source), "-o", str(output)]
+
+
+def build_variant(puzzle_id: str, variant: str) -> Path:
     ensure_input(puzzle_id)
-    output_dir = BUILD_ROOT / puzzle_id
-    output_dir.mkdir(parents=True, exist_ok=True)
+    source = source_path(puzzle_id, variant)
+    if not source.exists():
+        if variant == "work":
+            raise LabError(f"no working solution for puzzle {puzzle_id}; run: ptf start {puzzle_id}")
+        raise LabError(f"missing source file: {source.relative_to(ROOT)}")
+    output = binary_path(puzzle_id, variant)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    command = compiler_command(puzzle_id, source, output)
+    print(f"Building {puzzle_id} {variant}: {' '.join(command)}")
+    run_checked(command)
+    return output
 
-    if meta["language"] == "c":
-        compiler = require_program("gcc", "compile the C puzzles")
-        flags = [
-            "-O3",
-            "-fno-omit-frame-pointer",
-            "-std=c11",
-            "-Wall",
-            "-Wextra",
-            "-Wpedantic",
-        ]
-        extension = "c"
-    else:
-        compiler = require_program("g++", "compile the C++ puzzles")
-        flags = [
-            "-O3",
-            "-fno-omit-frame-pointer",
-            "-std=c++17",
-            "-Wall",
-            "-Wextra",
-            "-Wpedantic",
-        ]
-        extension = "cpp"
 
+def build_puzzle(puzzle_id: str) -> None:
     for variant in ("bad", "fixed"):
-        source = puzzle_dir(puzzle_id) / "src" / f"{variant}.{extension}"
-        output = binary_path(puzzle_id, variant)
-        command = [compiler, *flags, str(source), "-o", str(output)]
-        print(f"Building {puzzle_id} {variant}: {' '.join(command)}")
-        run_checked(command)
+        build_variant(puzzle_id, variant)
 
 
 def ensure_built(puzzle_id: str, variant: str) -> Path:
     binary = binary_path(puzzle_id, variant)
-    if not binary.exists():
-        build_puzzle(puzzle_id)
+    source = source_path(puzzle_id, variant)
+    if not binary.exists() or (source.exists() and source.stat().st_mtime > binary.stat().st_mtime):
+        build_variant(puzzle_id, variant)
     ensure_input(puzzle_id)
     return binary
 
@@ -231,17 +247,45 @@ def timed_run(puzzle_id: str, variant: str, *, show_output: bool) -> tuple[float
     return elapsed, output
 
 
+def median_runtime(puzzle_id: str, variant: str, runs: int) -> tuple[float, str]:
+    timings = []
+    expected_output = None
+    for _ in range(runs):
+        elapsed, output = timed_run(puzzle_id, variant, show_output=False)
+        if expected_output is None:
+            expected_output = output
+        elif output != expected_output:
+            raise LabError(f"{variant} produced inconsistent output across benchmark runs")
+        timings.append(elapsed)
+    return statistics.median(timings), expected_output or ""
+
+
 def command_list(_: argparse.Namespace) -> None:
-    print("ID  Name             Category              Learning objective")
-    print("--  ---------------  --------------------  ----------------------------------------------")
+    print("ID  Name             Target   Learning objective")
+    print("--  ---------------  -------  ----------------------------------------------------------")
     for puzzle_id, meta in PUZZLES.items():
         print(
-            f"{puzzle_id}  {meta['name']:<15}  {meta['category']:<20}  {meta['objective']}"
+            f"{puzzle_id}  {meta['name']:<15}  {meta['target_speedup']:>4.1f}x    {meta['objective']}"
         )
 
 
 def command_build(args: argparse.Namespace) -> None:
     build_puzzle(resolve_id(args.id))
+
+
+def command_start(args: argparse.Namespace) -> None:
+    puzzle_id = resolve_id(args.id)
+    destination = source_path(puzzle_id, "work")
+    if destination.exists():
+        print(f"Working solution already exists: {destination.relative_to(ROOT)}")
+    else:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path(puzzle_id, "bad"), destination)
+        print(f"Created editable solution: {destination.relative_to(ROOT)}")
+    create_journal(puzzle_id, "work")
+    print(f"Edit: {destination}")
+    print(f"Profile: ptf {PUZZLES[puzzle_id]['profile_command']} {puzzle_id} work")
+    print(f"Grade: ptf check {puzzle_id}")
 
 
 def command_run(args: argparse.Namespace) -> None:
@@ -265,6 +309,39 @@ def command_compare(args: argparse.Namespace) -> None:
     print(f"bad:    {bad_time:.3f} s")
     print(f"fixed:  {fixed_time:.3f} s")
     print(f"speedup: {speedup:.2f}x")
+
+
+def command_check(args: argparse.Namespace) -> None:
+    puzzle_id = resolve_id(args.id)
+    target = float(PUZZLES[puzzle_id]["target_speedup"])
+    ensure_built(puzzle_id, "work")
+
+    _, reference_output = timed_run(puzzle_id, "fixed", show_output=False)
+    _, work_output = timed_run(puzzle_id, "work", show_output=False)
+    print(f"Correctness: {'PASS' if work_output == reference_output else 'FAIL'}")
+    if work_output != reference_output:
+        print(f"  expected: {reference_output}")
+        print(f"  received: {work_output}")
+        sys.stdout.flush()
+        raise LabError("working solution failed correctness validation")
+
+    print(f"Benchmarking {args.runs} runs per variant...")
+    starter_time, _ = median_runtime(puzzle_id, "bad", args.runs)
+    work_time, _ = median_runtime(puzzle_id, "work", args.runs)
+    reference_time, _ = median_runtime(puzzle_id, "fixed", args.runs)
+    speedup = starter_time / work_time if work_time > 0 else float("inf")
+
+    print(f"starter median:   {starter_time:.4f} s")
+    print(f"solution median:  {work_time:.4f} s")
+    print(f"reference median: {reference_time:.4f} s")
+    print(f"speedup:          {speedup:.2f}x")
+    print(f"target:           {target:.2f}x")
+    if speedup < target:
+        print("Performance: FAIL")
+        sys.stdout.flush()
+        raise LabError("solution is correct but has not reached the performance target")
+    print("Performance: PASS")
+    print("Puzzle target met.")
 
 
 def variant_run_dir(puzzle_id: str, variant: str) -> Path:
@@ -316,6 +393,8 @@ def command_perf_stat(args: argparse.Namespace) -> None:
     destination = variant_run_dir(puzzle_id, args.variant) / "perf-stat.txt"
     destination.unlink(missing_ok=True)
     command = [perf, "stat", "-d"]
+    if puzzle_id == "03":
+        command.extend(["-e", "branches,branch-misses"])
     command.extend(["-o", str(destination), "--", *benchmark_command(puzzle_id, args.variant)])
     result = subprocess.run(command, text=True, capture_output=True)
     if result.stdout:
@@ -366,7 +445,8 @@ def command_lesson(args: argparse.Namespace) -> None:
     meta = PUZZLES[puzzle_id]
     readme = puzzle_dir(puzzle_id) / "README.md"
     print(f"Learning objective: {meta['objective']}")
-    print("Suggested workflow: hypothesis -> tool -> evidence -> diagnosis -> fix -> validation\n")
+    print(f"Performance target: {meta['target_speedup']:.1f}x faster than the starter")
+    print("Challenge loop: profile -> explain -> edit -> test -> measure -> repeat\n")
     print(readme.read_text(encoding="utf-8"))
 
 
@@ -405,6 +485,11 @@ def command_diagnose(args: argparse.Namespace) -> None:
 
 JOURNAL_TEMPLATE = """# Lab notes: Puzzle {puzzle_id}
 
+## Baseline and target
+Starter runtime:
+
+Performance target: {target:.1f}x speedup
+
 ## Before profiling
 My hypothesis:
 
@@ -421,23 +506,42 @@ perf report:
 
 ## Diagnosis
 
-## Fix prediction
+## Planned code change
 
-## After comparing fixed version
+File edited:
+
+## Validation
+Correctness result:
+
+Solution runtime:
+
+Speedup:
+
 Did the expected metric improve?
 
 ## Takeaway
 """
 
 
-def command_journal(args: argparse.Namespace) -> None:
-    puzzle_id = resolve_id(args.id)
-    destination = variant_run_dir(puzzle_id, args.variant) / "lab.md"
+def create_journal(puzzle_id: str, variant: str) -> Path:
+    destination = variant_run_dir(puzzle_id, variant) / "lab.md"
     if destination.exists():
         print(f"Continue your existing journal: {destination.relative_to(ROOT)}")
-        return
-    destination.write_text(JOURNAL_TEMPLATE.format(puzzle_id=puzzle_id), encoding="utf-8")
+        return destination
+    destination.write_text(
+        JOURNAL_TEMPLATE.format(
+            puzzle_id=puzzle_id,
+            target=float(PUZZLES[puzzle_id]["target_speedup"]),
+        ),
+        encoding="utf-8",
+    )
     print(f"Created {destination.relative_to(ROOT)}")
+    return destination
+
+
+def command_journal(args: argparse.Namespace) -> None:
+    puzzle_id = resolve_id(args.id)
+    create_journal(puzzle_id, args.variant)
 
 
 def command_reveal(args: argparse.Namespace) -> None:
@@ -449,10 +553,10 @@ def command_reveal(args: argparse.Namespace) -> None:
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ptf",
-        description="Build, profile, and diagnose Linux performance puzzles.",
+        description="Profile, optimize, and grade Linux performance puzzles.",
         epilog=(
             "Shortcuts: 'ptf 01' shows lesson 01; "
-            "'ptf 01 bad' runs its bad variant."
+            "'ptf 01 work' runs your editable solution."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -464,6 +568,10 @@ def make_parser() -> argparse.ArgumentParser:
     build_parser.add_argument("id")
     build_parser.set_defaults(handler=command_build)
 
+    start_parser = subparsers.add_parser("start", help="create an editable working solution")
+    start_parser.add_argument("id")
+    start_parser.set_defaults(handler=command_start)
+
     for name, handler, help_text in (
         ("run", command_run, "run one puzzle variant"),
         ("strace", command_strace, "collect a strace syscall summary"),
@@ -473,8 +581,13 @@ def make_parser() -> argparse.ArgumentParser:
     ):
         subparser = subparsers.add_parser(name, help=help_text)
         subparser.add_argument("id")
-        subparser.add_argument("variant", choices=("bad", "fixed"))
+        subparser.add_argument("variant", choices=("bad", "fixed", "work"))
         subparser.set_defaults(handler=handler)
+
+    check_parser = subparsers.add_parser("check", help="grade correctness and performance")
+    check_parser.add_argument("id")
+    check_parser.add_argument("--runs", type=int, default=3, choices=range(1, 10))
+    check_parser.set_defaults(handler=command_check)
 
     compare_parser = subparsers.add_parser("compare", help="compare bad and fixed runtimes")
     compare_parser.add_argument("id")
@@ -508,7 +621,7 @@ def expand_shorthand(argv: list[str]) -> list[str]:
         return argv
     if len(argv) == 1:
         return ["lesson", puzzle_id]
-    if len(argv) == 2 and argv[1] in ("bad", "fixed"):
+    if len(argv) == 2 and argv[1] in ("bad", "fixed", "work"):
         return ["run", puzzle_id, argv[1]]
     return argv
 

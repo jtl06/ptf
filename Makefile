@@ -19,5 +19,5 @@ install:
 	ln -sf "$(abspath ptf)" "$(DESTDIR)$(BINDIR)/ptf"
 
 clean:
-	rm -rf build/01 build/02 build/03 runs/01 runs/02 runs/03
+	rm -rf build/01 build/02 build/03
 	rm -f puzzles/01-syscall-storm/input/data.txt

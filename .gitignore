@@ -2,8 +2,9 @@ build/*
 !build/.gitkeep
 runs/*
 !runs/.gitkeep
+work/*
+!work/.gitkeep
 puzzles/01-syscall-storm/input/data.txt
 __pycache__/
 *.pyc
 .DS_store
-

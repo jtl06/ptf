@@ -1,96 +1,100 @@
 # perf-mystery
 
-`perf-mystery` is a local CTF-style lab for learning Linux performance
-debugging. Each puzzle gives you a slow program, profiling tools, progressive
-hints, and an equivalent optimized version.
+`perf-mystery` is a hands-on Linux performance lab inspired by the systems labs
+in CS:APP. Every puzzle starts with working C++ code that is too slow. Your job
+is to investigate the program, change the code, and meet a performance target
+while preserving the result.
 
-The lab develops a repeatable investigation process:
+The challenge loop is:
 
-> hypothesis -> tool -> evidence -> diagnosis -> fix -> validation
+> profile -> explain -> edit -> test -> measure -> repeat
 
-The goal is to explain why a program is slow using observable evidence. Runtime
-establishes the symptom. Tool output supports the diagnosis. The fixed version
-tests whether the predicted behavior and metric improve.
+Runtime tells you whether the target was met. `strace` and `perf` provide the
+evidence needed to choose an effective code change.
 
-## Learning objectives
+## What you practice
 
-After completing the puzzles, you should be able to:
+- Turning a runtime symptom into a testable bottleneck hypothesis.
+- Choosing a profiling tool that can confirm or reject that hypothesis.
+- Connecting syscall counts and hardware counters to C++ source code.
+- Editing data access, control flow, and I/O behavior.
+- Preserving correctness during optimization.
+- Iterating until an objective performance target is reached.
 
-- Form a specific performance hypothesis before collecting data.
-- Select `strace`, `perf stat`, or `perf record` based on that hypothesis.
-- Separate syscall-heavy behavior from CPU and memory bottlenecks.
-- Interpret syscall counts, IPC, cache symptoms, and branch-miss rates.
-- Connect profiler output to a source-level cause.
-- Predict which metric should change after a fix.
-- Validate that an optimization preserves program results.
-- Record an investigation clearly enough for another person to reproduce it.
+## Challenges
 
-The puzzles emphasize tool selection as much as tool operation. A useful
-profiling command answers a specific question:
+| ID | Challenge | Main tool | Target |
+|---|---|---|---|
+| 01 | Syscall Storm | `strace -c` | 10x faster than starter |
+| 02 | Cache Maze | `perf stat`, `perf record` | 4x faster than starter |
+| 03 | Branch Lottery | branch counters | 1.5x faster than starter |
 
-- How often does the program enter the kernel?
-- How efficiently does the CPU retire instructions?
-- Where are samples concentrated?
-- Does the optimized version improve the expected metric?
+Targets use speedup relative to the starter on the same machine. This keeps the
+grading useful across Intel, AMD, Graviton 3, and Graviton 4 systems.
 
-## Puzzles
+## Challenge workflow
 
-### 01: Syscall Storm
+Start a puzzle:
 
-**Objective:** Recognize syscall overhead and use `strace -c` to quantify it.
+```sh
+ptf start 01
+```
 
-The program counts newlines in a generated text file. The slow version reads one
-byte per syscall. The optimized version reads 64 KiB at a time.
+This creates:
 
-Look for:
+```text
+work/01/solution.cpp
+runs/01/work/lab.md
+```
 
-- The total number of `read()` calls.
-- The relationship between input size and syscall count.
-- The change in syscall count after buffering.
+The solution begins as a copy of the slow starter. Work through the following
+cycle:
 
-### 02: Cache Maze
+1. Run the starter and record its behavior.
+2. Profile the working solution with the tool suggested by your hypothesis.
+3. Inspect and edit `work/<id>/solution.cpp`.
+4. Run or profile the `work` variant again.
+5. Grade correctness and performance with `ptf check <id>`.
+6. Repeat until the target passes.
 
-**Objective:** Recognize poor memory locality and dependent pointer chasing in
-`perf` evidence.
+Example:
 
-The slow version traverses a randomized linked structure. The optimized version
-performs equivalent work over contiguous storage.
+```sh
+ptf start 01
+ptf 01 work
+ptf strace 01 work
 
-Look for:
+# Edit work/01/solution.cpp
 
-- Runtime and instructions per cycle.
-- Available cache and TLB symptoms.
-- Samples concentrated in the traversal loop.
-- Quiet syscall activity during expensive user-space work.
+ptf 01 work
+ptf strace 01 work
+ptf check 01
+```
 
-### 03: Branch Lottery
+`ptf check` performs three steps:
 
-**Objective:** Measure unpredictable branches and validate a branchless
-equivalent.
+1. Compiles the working C++ solution.
+2. Compares its output with the reference result.
+3. Measures median runtime and grades the required speedup.
 
-The slow version branches on deterministic pseudo-random data. The optimized
-version uses a mask to compute the same result.
+Use more or fewer timing runs when needed:
 
-Look for:
+```sh
+ptf check 02 --runs 5
+```
 
-- `branches` and `branch-misses`.
-- Branch misses as a percentage of branch instructions.
-- Matching checksums across both implementations.
-- The expected counter change after removing the data-dependent branch.
+## Tools and hints
 
-## Lab workflow
+The profiling commands accept `bad`, `work`, and `fixed` variants:
 
-1. Read the lesson with `ptf lesson <id>`.
-2. Create notes with `ptf journal <id> bad`.
-3. Write down a bottleneck hypothesis and the evidence you expect.
-4. Run the slow version to capture its runtime and checksum.
-5. Choose a profiling command that tests the hypothesis.
-6. Record the decisive metrics or output patterns.
-7. Complete the diagnosis quiz before reading the answer.
-8. Compare the optimized version and inspect the predicted metric.
-9. Write a takeaway that connects source code, evidence, and hardware behavior.
+```sh
+ptf strace 01 work
+ptf perf-stat 02 work
+ptf perf-record 02 work
+perf report -i runs/02/work/perf.data
+```
 
-Progressive hints preserve the investigation:
+Progressive hints guide the investigation while leaving the code change to you:
 
 ```sh
 ptf hint 02
@@ -98,97 +102,86 @@ ptf hint 02 2
 ptf hint 02 3
 ```
 
-## Requirements
-
-- Linux
-- Python 3
-- `gcc`, `g++`, and `make`
-- `strace` for syscall exercises
-- Linux `perf` for hardware counters and sampling
-
-The CLI detects missing tools and reports common `perf` permission restrictions,
-including `perf_event_paranoid` and unavailable PMU events.
-
-## Setup
-
-From the repository root:
+After completing the challenge:
 
 ```sh
-make
-make install
+ptf diagnose 02
+ptf reveal 02
 ```
 
-`make install` creates `~/.local/bin/ptf` as a symlink to the checkout. Ensure
-`~/.local/bin` is on `PATH`. You can choose another prefix:
+`reveal` explains the reference diagnosis and optimization.
 
-```sh
-make install PREFIX=/another/path
-```
+## Commands
 
-You can also run `./ptf` directly from the checkout.
-
-## Example session
-
-```sh
+```text
 ptf list
-ptf 01
-ptf journal 01 bad
-ptf 01 bad
-ptf strace 01 bad
-ptf diagnose 01
-ptf compare 01
-ptf strace 01 fixed
-ptf reveal 01
+ptf start <id>
+ptf lesson <id>
+ptf run <id> <bad|work|fixed>
+ptf strace <id> <bad|work|fixed>
+ptf perf-stat <id> <bad|work|fixed>
+ptf perf-record <id> <bad|work|fixed>
+ptf check <id> [--runs N]
+ptf hint <id> [level]
+ptf diagnose <id>
+ptf reveal <id>
 ```
 
-The puzzle-first shortcuts expand to the full commands:
-
-- `ptf 01` runs `ptf lesson 01`.
-- `ptf 01 bad` runs `ptf run 01 bad`.
-- `ptf 01 fixed` runs `ptf run 01 fixed`.
-
-For CPU and memory analysis:
+Puzzle-first shortcuts are available:
 
 ```sh
-ptf perf-stat 02 bad
-ptf perf-record 02 bad
-perf report -i runs/02/bad/perf.data
+ptf 01          # show lesson 01
+ptf 01 work     # run your solution
+ptf 01 bad      # run the starter
 ```
 
 Puzzle IDs accept `1`, `01`, or a full slug such as `01-syscall-storm`.
 
-Generated binaries live under `build/`. Profiling evidence and lab notes live
-under `runs/`. Puzzle 01 creates its deterministic input during the first
-build. Generated inputs and run artifacts are excluded from Git.
+## Requirements
 
-## Comparing systems
+- Linux
+- Python 3
+- `g++` with C++17 support
+- `make`
+- `strace`
+- Linux `perf`
 
-The puzzle sources build on x86-64 and AArch64 with GCC. This makes the same
-investigation useful across Intel, AMD, Graviton 3, and Graviton 4 systems.
+The CLI reports missing tools, restricted `perf_event_paranoid` settings, and
+unavailable PMU events.
 
-Record the following context before comparing results:
+## Setup
+
+```sh
+git clone https://github.com/jtl06/ptf.git
+cd ptf
+make
+make install
+ptf list
+```
+
+`make install` creates `~/.local/bin/ptf` as a symlink to the checkout. Ensure
+`~/.local/bin` is on `PATH`.
+
+Generated binaries live in `build/`. Editable solutions live in `work/`.
+Profiling evidence and notes live in `runs/`. Git ignores all three directories
+except for their placeholder files.
+
+## Comparing architectures
+
+Run the same solution and grading command on each machine. Record:
 
 - CPU model and architecture
 - Kernel version
-- Compiler version and flags
+- Compiler version
 - Virtual machine or container environment
 - `perf_event_paranoid` value
 - Available PMU events
 
-Event names, counts, and availability vary across processors and virtualized
-environments. Start with portable categories such as cycles, instructions, IPC,
-branches, and branch misses. Compare each slow version with its optimized
-version on the same system.
-
-The expected diagnosis remains stable across architectures:
-
-- Syscall Storm produces excessive `read()` calls.
-- Cache Maze serializes poor-locality memory accesses.
-- Branch Lottery creates difficult-to-predict branch outcomes.
+Counter availability and exact values vary by processor. The source-level
+challenge remains the same, while the evidence shows how each architecture
+responds to the optimization.
 
 ## Future direction
 
-A future collector interface could add Arm Performix as a backend for guided
-Arm analysis. It could collect architecture-specific PMU events, write evidence
-into the existing run directories, and provide Graviton-focused questions while
-preserving the same lesson and journal workflow.
+An Arm Performix backend could add Graviton-focused event collection and guided
+analysis while preserving the same editable C++ challenge and grading workflow.

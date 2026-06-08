@@ -1,10 +1,8 @@
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
-#include <stdio.h>
+#include <cstdint>
+#include <cstdio>
 #include <unistd.h>
-
-enum { BUFFER_SIZE = 64 * 1024 };
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -18,14 +16,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    unsigned char buffer[BUFFER_SIZE];
-    uint64_t newlines = 0;
+    std::uint64_t newlines = 0;
+    unsigned char byte = 0;
     for (;;) {
-        ssize_t bytes_read = read(fd, buffer, sizeof(buffer));
-        if (bytes_read > 0) {
-            for (ssize_t index = 0; index < bytes_read; ++index) {
-                newlines += (buffer[index] == '\n');
-            }
+        ssize_t bytes_read = read(fd, &byte, 1);
+        if (bytes_read == 1) {
+            newlines += (byte == '\n');
         } else if (bytes_read == 0) {
             break;
         } else if (errno != EINTR) {
@@ -39,7 +35,6 @@ int main(int argc, char **argv) {
         perror("close");
         return 1;
     }
-    printf("newlines=%" PRIu64 "\n", newlines);
+    std::printf("newlines=%llu\n", static_cast<unsigned long long>(newlines));
     return 0;
 }
-

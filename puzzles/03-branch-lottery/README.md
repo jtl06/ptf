@@ -1,28 +1,36 @@
 # Puzzle 03: Branch Lottery
 
-## Learning objective
+## Objective
 
-Learn how unpredictable branches appear in hardware performance counters and
-how to validate a branchless equivalent.
+Measure unpredictable control flow with hardware counters, then rewrite the hot
+C++ loop to reduce branch misses.
 
-## Scenario
+## Performance target
 
-Both programs generate the same deterministic pseudo-random values. Values
-below the high-bit threshold contribute unchanged; values above it contribute
-their bitwise complement. The bad version expresses this as an unpredictable
-branch. The fixed version uses a mask.
+Reach at least **1.5x speedup** over the starter while printing the same
+checksum.
 
-## Suggested workflow
+## Assignment
 
-1. Compare runtimes and verify matching checksums.
-2. Run `ptf perf-stat 03 bad`.
-3. Compare the default `branches` and `branch-misses` counters with the fixed
-   version. If your `perf` build omits them, run
-   `perf stat -e branches,branch-misses -- build/03/bad` directly.
-4. Express branch misses as a percentage of branch instructions.
-5. Predict how the source can compute the same result without a data-dependent
-   branch.
+The starter processes deterministic pseudo-random values. Its hot loop performs
+the intended calculation and creates difficult branch outcomes.
 
-Follow:
+Create your editable solution:
 
-`hypothesis -> tool -> evidence -> diagnosis -> fix -> validation`
+```sh
+ptf start 03
+```
+
+Then investigate and optimize `work/03/solution.cpp`.
+
+## Suggested process
+
+1. Run `ptf 03 work` and record the baseline.
+2. Measure `branches` and `branch-misses` with `ptf perf-stat 03 work`.
+3. Calculate the branch-miss percentage.
+4. Identify the data-dependent branch in the hot loop.
+5. Edit `work/03/solution.cpp` while preserving the calculation.
+6. Measure the counters and runtime again.
+7. Submit the result with `ptf check 03`.
+
+Use the hints progressively. Read `ptf reveal 03` after completing the target.
