@@ -15,11 +15,13 @@ std::uint32_t node_value(std::uint32_t index) {
 }  // namespace
 
 int main() {
+    // Store only the values needed by the repeated computation.
     std::vector<std::uint32_t> values(kNodeCount);
     for (std::size_t index = 0; index < kNodeCount; ++index) {
         values[index] = node_value(static_cast<std::uint32_t>(index));
     }
 
+    // Sequential traversal gives the CPU a predictable stream of cache lines.
     std::uint64_t checksum = 0;
     for (int round = 0; round < kRounds; ++round) {
         for (std::uint32_t value : values) {
@@ -30,4 +32,3 @@ int main() {
     std::cout << "checksum=" << checksum << '\n';
     return 0;
 }
-

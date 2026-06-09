@@ -16,15 +16,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Count every newline and print the total so the work remains observable.
     std::uint64_t newlines = 0;
     unsigned char byte = 0;
     for (;;) {
+        // This loop is the main area to investigate with strace.
         ssize_t bytes_read = read(fd, &byte, 1);
         if (bytes_read == 1) {
             newlines += (byte == '\n');
         } else if (bytes_read == 0) {
             break;
         } else if (errno != EINTR) {
+            // A signal may interrupt read(); retry that case and report others.
             perror("read");
             close(fd);
             return 1;
