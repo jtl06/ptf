@@ -94,6 +94,8 @@ Required targets control pass/fail; stretch goals recognize further optimization
 ### 02: Cache Maze
 
 - Starter follows a randomized dependent traversal through a large node vector.
+- Its order-sensitive checksum requires the exact logical visit sequence.
+- Learners may change physical layout and traversal mechanics.
 - Main evidence includes runtime, IPC, cache/TLB symptoms, and hot traversal
   samples.
 

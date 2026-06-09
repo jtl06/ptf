@@ -19,12 +19,12 @@ user-space loads rather than repeated system calls.
 
 ## Fix
 
-Store and traverse values contiguously. The CPU can prefetch sequential cache
-lines, overlap loads, and often vectorize the accumulation.
+Recreate the shuffled logical visit order during setup, then store values
+contiguously in that order. The repeated computation processes the same
+sequence while the CPU receives a sequential stream of cache lines.
 
 ## Validation
 
-Both variants print the same checksum. The fixed version should run faster with
-higher IPC and less severe cache/TLB evidence where those counters are
-available.
-
+The order-sensitive checksum confirms that both variants process the same visit
+sequence. The fixed version should run faster with higher IPC and less severe
+cache/TLB evidence where those counters are available.

@@ -41,6 +41,10 @@ std::uint32_t node_value(std::uint32_t index) {
     return (index * UINT32_C(2654435761)) ^ (index >> 3U);
 }
 
+std::uint64_t update_checksum(std::uint64_t checksum, std::uint32_t value) {
+    return checksum * UINT64_C(11400714819323198485) + value;
+}
+
 }  // namespace
 
 int main() {
@@ -72,7 +76,7 @@ int main() {
         std::uint32_t current = head;
         for (std::size_t visited = 0; visited < kNodeCount; ++visited) {
             const Node &node = nodes[current];
-            checksum += node.value;
+            checksum = update_checksum(checksum, node.value);
             current = node.next;
         }
     }
