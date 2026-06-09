@@ -33,7 +33,8 @@ ptf check 01
 ```
 
 `ptf start` copies the starter into `work/<id>/solution.cpp` and creates a lab
-journal. It preserves an existing solution.
+journal. Re-running it saves the current solution as a timestamped backup, then
+resets `solution.cpp` from the latest starter. Existing notes remain unchanged.
 
 `ptf check`:
 

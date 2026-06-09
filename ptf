@@ -282,7 +282,7 @@ def command_help(_: argparse.Namespace) -> None:
 
 Workflow:
   ptf list                         List challenges and targets
-  ptf start <id>                   Create work/<id>/solution.cpp
+  ptf start <id>                   Reset solution.cpp from the starter
   ptf <id> work                    Build and run your solution
   ptf strace <id> work             Summarize system calls
   ptf perf-stat <id> work          Collect performance counters
@@ -317,12 +317,20 @@ def command_build(args: argparse.Namespace) -> None:
 def command_start(args: argparse.Namespace) -> None:
     puzzle_id = resolve_id(args.id)
     destination = source_path(puzzle_id, "work")
+    destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
-        print(f"Working solution already exists: {destination.relative_to(ROOT)}")
-    else:
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_path(puzzle_id, "bad"), destination)
-        print(f"Created editable solution: {destination.relative_to(ROOT)}")
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        backup = destination.with_name(f"solution.backup-{timestamp}{destination.suffix}")
+        counter = 2
+        while backup.exists():
+            backup = destination.with_name(
+                f"solution.backup-{timestamp}-{counter}{destination.suffix}"
+            )
+            counter += 1
+        shutil.copy2(destination, backup)
+        print(f"Backed up existing solution: {backup.relative_to(ROOT)}")
+    shutil.copyfile(source_path(puzzle_id, "bad"), destination)
+    print(f"Reset editable solution: {destination.relative_to(ROOT)}")
     create_journal(puzzle_id, "work")
     print(f"Edit: {destination}")
     print(f"Profile: ptf {PUZZLES[puzzle_id]['profile_command']} {puzzle_id} work")
@@ -629,7 +637,9 @@ def make_parser() -> argparse.ArgumentParser:
     build_parser.add_argument("id")
     build_parser.set_defaults(handler=command_build)
 
-    start_parser = subparsers.add_parser("start", help="create an editable working solution")
+    start_parser = subparsers.add_parser(
+        "start", help="reset the editable solution from the starter"
+    )
     start_parser.add_argument("id")
     start_parser.set_defaults(handler=command_start)
 

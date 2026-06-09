@@ -61,6 +61,10 @@ cycle:
 5. Grade correctness and performance with `ptf check <id>`.
 6. Repeat until the target passes.
 
+Running `ptf start <id>` again resets `solution.cpp` from the current starter.
+The previous solution is saved beside it with a timestamped `solution.backup-*`
+name. Existing lab notes remain unchanged.
+
 Example:
 
 ```sh
@@ -122,7 +126,7 @@ Run `ptf help` for a compact workflow and command summary.
 ```text
 ptf help
 ptf list
-ptf start <id>
+ptf start <id>                    Reset work/<id>/solution.cpp
 ptf lesson <id>
 ptf run <id> <bad|work|fixed>
 ptf strace <id> <bad|work|fixed>
