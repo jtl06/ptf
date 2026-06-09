@@ -2,29 +2,29 @@
 
 ## Diagnosis
 
-The bad version suffers from poor memory locality and serialized pointer
-chasing. Its next address cannot be known until the current node arrives, which
-limits memory-level parallelism. The randomized order also defeats spatial
-locality and hardware prefetching.
+The image is stored in row-major order, while the starter advances down a
+column in its innermost loop. Consecutive output pixels are 4096 elements
+apart. Their 3x3 input neighborhoods are also far apart, so the loop gets
+little reuse from each fetched cache line.
 
 ## Strongest evidence
 
-`perf stat -d` should show worse runtime and lower IPC for the bad version.
-Depending on CPU and kernel event support, cache and TLB symptoms may also be
-worse. `perf record -g` should place most samples in the pointer-chain traversal.
-Exact cache event names and availability vary by processor.
+`perf stat -d` should show worse runtime and lower IPC for the starter.
+Available cache and TLB counters may also increase. `perf record -g` should
+place most samples in the blur loop.
 
-`strace` is mostly quiet because the costly work happens after allocation, in
-user-space loads rather than repeated system calls.
+`strace` remains quiet because the expensive work consists of user-space memory
+accesses.
 
 ## Fix
 
-Recreate the shuffled logical visit order during setup, then store values
-contiguously in that order. The repeated computation processes the same
-sequence while the CPU receives a sequential stream of cache lines.
+Traverse each image row from left to right. Neighboring output pixels then
+reuse most of the same input neighborhood and write adjacent destination
+elements. The reference changes the order of the two image loops; further
+optimizations can reduce indexing overhead or process several pixels together.
 
 ## Validation
 
-The order-sensitive checksum confirms that both variants process the same visit
-sequence. The fixed version should run faster with higher IPC and less severe
-cache/TLB evidence where those counters are available.
+Both versions print the same position-sensitive image checksum. The optimized
+version should run faster and improve the available cache, TLB, or IPC
+evidence.

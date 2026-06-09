@@ -47,23 +47,28 @@ ptf start 01
 This creates:
 
 ```text
-work/01/solution.cpp
+work/01/bad_reference.cpp
+work/01/work.cpp
 runs/01/work/lab.md
 ```
 
-The solution begins as a copy of the slow starter. Work through the following
-cycle:
+`bad_reference.cpp` preserves the original slow code for quick comparison.
+`work.cpp` begins as the same code and is the file you edit. Work through the
+following cycle:
 
 1. Run the starter and record its behavior.
-2. Profile the working solution with the tool suggested by your hypothesis.
-3. Inspect and edit `work/<id>/solution.cpp`.
+2. Profile the work variant with the tool suggested by your hypothesis.
+3. Inspect and edit `work/<id>/work.cpp`.
 4. Run or profile the `work` variant again.
 5. Grade correctness and performance with `ptf check <id>`.
 6. Repeat until the target passes.
 
-Running `ptf start <id>` again resets `solution.cpp` from the current starter.
-The previous solution is saved beside it with a timestamped `solution.backup-*`
-name. Existing lab notes remain unchanged.
+Running `ptf start <id>` again resets `work.cpp` from the current starter.
+The previous work is saved beside it with a timestamped `work.backup-*`
+name. It also refreshes `bad_reference.cpp`. Existing lab notes remain
+unchanged.
+
+Older workspaces using `solution.cpp` are renamed to `work.cpp` automatically.
 
 Example:
 
@@ -72,7 +77,7 @@ ptf start 01
 ptf 01 work
 ptf strace 01 work
 
-# Edit work/01/solution.cpp
+# Edit work/01/work.cpp
 
 ptf 01 work
 ptf strace 01 work
@@ -81,7 +86,7 @@ ptf check 01
 
 `ptf check` performs three steps:
 
-1. Compiles the working C++ solution.
+1. Compiles `work.cpp`.
 2. Compares its output with the reference result.
 3. Measures median runtime and grades the required speedup.
 
@@ -126,7 +131,7 @@ Run `ptf help` for a compact workflow and command summary.
 ```text
 ptf help
 ptf list
-ptf start <id>                    Reset work/<id>/solution.cpp
+ptf start <id>                    Reset work/<id>/work.cpp
 ptf lesson <id>
 ptf run <id> <bad|work|fixed>
 ptf strace <id> <bad|work|fixed>
@@ -142,7 +147,7 @@ Puzzle-first shortcuts are available:
 
 ```sh
 ptf 01          # show lesson 01
-ptf 01 work     # run your solution
+ptf 01 work     # run your work
 ptf 01 bad      # run the starter
 ```
 
@@ -173,13 +178,13 @@ ptf list
 `make install` creates `~/.local/bin/ptf` as a symlink to the checkout. Ensure
 `~/.local/bin` is on `PATH`.
 
-Generated binaries live in `build/`. Editable solutions live in `work/`.
+Generated binaries live in `build/`. Editable work sources live in `work/`.
 Profiling evidence and notes live in `runs/`. Git ignores all three directories
 except for their placeholder files.
 
 ## Comparing architectures
 
-Run the same solution and grading command on each machine. Record:
+Run the same work source and grading command on each machine. Record:
 
 - CPU model and architecture
 - Kernel version

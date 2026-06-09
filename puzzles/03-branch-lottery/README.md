@@ -15,13 +15,13 @@ checksum.
 The starter processes deterministic pseudo-random values. Its hot loop performs
 the intended calculation and creates difficult branch outcomes.
 
-Create your editable solution:
+Create your editable workspace:
 
 ```sh
 ptf start 03
 ```
 
-Then investigate and optimize `work/03/solution.cpp`.
+Then investigate and optimize `work/03/work.cpp`.
 
 ## Suggested process
 
@@ -29,7 +29,7 @@ Then investigate and optimize `work/03/solution.cpp`.
 2. Measure `branches` and `branch-misses` with `ptf perf-stat 03 work`.
 3. Calculate the branch-miss percentage.
 4. Identify the data-dependent branch in the hot loop.
-5. Edit `work/03/solution.cpp` while preserving the calculation.
+5. Edit `work/03/work.cpp` while preserving the calculation.
 6. Measure the counters and runtime again.
 7. Submit the result with `ptf check 03`.
 

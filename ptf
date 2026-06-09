@@ -57,7 +57,7 @@ PUZZLES = {
         "slug": "02-cache-maze",
         "name": "Cache Maze",
         "category": "memory locality",
-        "objective": "Recognize pointer chasing and poor locality in perf evidence.",
+        "objective": "Use perf to diagnose poor locality in an image convolution.",
         "language": "cpp",
         "target_speedup": 4.0,
         "profile_command": "perf-stat",
@@ -66,7 +66,7 @@ PUZZLES = {
                 "question": "What bottleneck category is this?",
                 "choices": ["Syscall overhead", "Poor memory locality", "Lock contention"],
                 "answer": 2,
-                "explanation": "Dependent accesses jump through a randomized node layout.",
+                "explanation": "The blur repeatedly walks a row-major image with a large stride.",
             },
             {
                 "question": "Which tool gives the strongest evidence?",
@@ -82,7 +82,7 @@ PUZZLES = {
                     "High branch misses only",
                 ],
                 "answer": 2,
-                "explanation": "Random dependent loads stall execution and reduce useful work per cycle.",
+                "explanation": "Strided image access wastes cache lines and stresses translation.",
             },
         ],
     },
@@ -152,7 +152,12 @@ def source_extension(puzzle_id: str) -> str:
 def source_path(puzzle_id: str, variant: str) -> Path:
     extension = source_extension(puzzle_id)
     if variant == "work":
-        return WORK_ROOT / puzzle_id / f"solution.{extension}"
+        work = WORK_ROOT / puzzle_id / f"work.{extension}"
+        legacy = WORK_ROOT / puzzle_id / f"solution.{extension}"
+        if not work.exists() and legacy.exists():
+            legacy.rename(work)
+            print(f"Renamed existing editable source: {work.relative_to(ROOT)}")
+        return work
     return puzzle_dir(puzzle_id) / "src" / f"{variant}.{extension}"
 
 
@@ -205,7 +210,7 @@ def build_variant(puzzle_id: str, variant: str) -> Path:
     source = source_path(puzzle_id, variant)
     if not source.exists():
         if variant == "work":
-            raise LabError(f"no working solution for puzzle {puzzle_id}; run: ptf start {puzzle_id}")
+            raise LabError(f"no work source for puzzle {puzzle_id}; run: ptf start {puzzle_id}")
         raise LabError(f"missing source file: {source.relative_to(ROOT)}")
     output = binary_path(puzzle_id, variant)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -282,8 +287,8 @@ def command_help(_: argparse.Namespace) -> None:
 
 Workflow:
   ptf list                         List challenges and targets
-  ptf start <id>                   Reset solution.cpp from the starter
-  ptf <id> work                    Build and run your solution
+  ptf start <id>                   Reset work.cpp and copy bad_reference.cpp
+  ptf <id> work                    Build and run your work
   ptf strace <id> work             Summarize system calls
   ptf perf-stat <id> work          Collect performance counters
   ptf perf-record <id> work        Record samples for perf report
@@ -304,7 +309,7 @@ Baselines:
 
 Shortcuts:
   ptf 01                           Show lesson 01
-  ptf 01 work                      Run your Puzzle 01 solution
+  ptf 01 work                      Run your Puzzle 01 work
 
 Use 'ptf <command> --help' for command arguments."""
     )
@@ -320,17 +325,22 @@ def command_start(args: argparse.Namespace) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        backup = destination.with_name(f"solution.backup-{timestamp}{destination.suffix}")
+        backup = destination.with_name(f"work.backup-{timestamp}{destination.suffix}")
         counter = 2
         while backup.exists():
             backup = destination.with_name(
-                f"solution.backup-{timestamp}-{counter}{destination.suffix}"
+                f"work.backup-{timestamp}-{counter}{destination.suffix}"
             )
             counter += 1
         shutil.copy2(destination, backup)
-        print(f"Backed up existing solution: {backup.relative_to(ROOT)}")
-    shutil.copyfile(source_path(puzzle_id, "bad"), destination)
-    print(f"Reset editable solution: {destination.relative_to(ROOT)}")
+        print(f"Backed up existing work: {backup.relative_to(ROOT)}")
+    reference = destination.with_name(f"bad_reference{destination.suffix}")
+    legacy_reference = destination.with_name(f"starter{destination.suffix}")
+    legacy_reference.unlink(missing_ok=True)
+    shutil.copyfile(source_path(puzzle_id, "bad"), reference)
+    shutil.copyfile(reference, destination)
+    print(f"Copied bad reference: {reference.relative_to(ROOT)}")
+    print(f"Reset editable work source: {destination.relative_to(ROOT)}")
     create_journal(puzzle_id, "work")
     print(f"Edit: {destination}")
     print(f"Profile: ptf {PUZZLES[puzzle_id]['profile_command']} {puzzle_id} work")
@@ -374,7 +384,7 @@ def command_check(args: argparse.Namespace) -> None:
         print(f"  expected: {reference_output}")
         print(f"  received: {work_output}")
         sys.stdout.flush()
-        raise LabError("working solution failed correctness validation")
+        raise LabError("work version failed correctness validation")
 
     print(f"Benchmarking {args.runs} runs per variant...")
     starter_time, _ = median_runtime(puzzle_id, "bad", args.runs)
@@ -383,7 +393,7 @@ def command_check(args: argparse.Namespace) -> None:
     speedup = starter_time / work_time if work_time > 0 else float("inf")
 
     print(f"starter median:   {starter_time:.4f} s")
-    print(f"solution median:  {work_time:.4f} s")
+    print(f"work median:      {work_time:.4f} s")
     print(f"reference median: {reference_time:.4f} s")
     print(f"speedup:          {speedup:.2f}x")
     print(f"target:           {target:.2f}x")
@@ -392,7 +402,7 @@ def command_check(args: argparse.Namespace) -> None:
     if speedup < target:
         print("Performance: FAIL")
         sys.stdout.flush()
-        raise LabError("solution is correct but has not reached the performance target")
+        raise LabError("work version is correct but has not reached the performance target")
     print("Performance: PASS")
     print("Puzzle target met.")
     if stretch is not None:
@@ -574,7 +584,7 @@ File edited:
 ## Validation
 Correctness result:
 
-Solution runtime:
+Work runtime:
 
 Speedup:
 
@@ -622,7 +632,7 @@ def make_parser() -> argparse.ArgumentParser:
         description="Profile, optimize, and grade Linux performance puzzles.",
         epilog=(
             "Shortcuts: 'ptf 01' shows lesson 01; "
-            "'ptf 01 work' runs your editable solution."
+            "'ptf 01 work' runs your editable work source."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -638,7 +648,7 @@ def make_parser() -> argparse.ArgumentParser:
     build_parser.set_defaults(handler=command_build)
 
     start_parser = subparsers.add_parser(
-        "start", help="reset the editable solution from the starter"
+        "start", help="reset work.cpp from the bad reference"
     )
     start_parser.add_argument("id")
     start_parser.set_defaults(handler=command_start)

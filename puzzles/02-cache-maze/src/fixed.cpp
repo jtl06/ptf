@@ -1,72 +1,64 @@
-// Stores values in traversal order, processes them repeatedly, and prints the
-// resulting checksum.
+// Repeatedly applies a 3x3 box blur to a generated grayscale image.
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <numeric>
-#include <utility>
 #include <vector>
 
 namespace {
 
-constexpr std::size_t kNodeCount = 3U * 1024U * 1024U;
-constexpr int kRounds = 8;
+constexpr std::size_t kWidth = 4096;
+constexpr std::size_t kHeight = 4096;
+constexpr int kRounds = 6;
 
-// Deterministic pseudo-random generator.
-class XorShift32 {
-  public:
-    explicit XorShift32(std::uint32_t state) : state_(state) {}
-
-    std::uint32_t next() {
-        std::uint32_t value = state_;
-        value ^= value << 13U;
-        value ^= value >> 17U;
-        value ^= value << 5U;
-        state_ = value;
-        return value;
-    }
-
-  private:
-    std::uint32_t state_;
-};
-
-std::uint32_t node_value(std::uint32_t index) {
-    return (index * UINT32_C(2654435761)) ^ (index >> 3U);
+std::uint16_t pixel_value(std::size_t row, std::size_t column) {
+    const std::uint32_t index =
+        static_cast<std::uint32_t>(row * kWidth + column);
+    return static_cast<std::uint16_t>(
+        ((index * UINT32_C(2654435761)) ^ (index >> 5U)) & UINT32_C(0xffff));
 }
 
-std::uint64_t update_checksum(std::uint64_t checksum, std::uint32_t value) {
-    return checksum * UINT64_C(11400714819323198485) + value;
+std::uint64_t checksum(const std::vector<std::uint16_t> &image) {
+    std::uint64_t result = 0;
+    for (std::uint16_t pixel : image) {
+        result = result * UINT64_C(11400714819323198485) + pixel;
+    }
+    return result;
 }
 
 }  // namespace
 
 int main() {
-    std::vector<std::uint32_t> order(kNodeCount);
-    std::iota(order.begin(), order.end(), 0U);
-
-    // Recreate the starter's shuffled traversal order.
-    XorShift32 random(UINT32_C(0x6d2b79f5));
-    for (std::size_t index = kNodeCount - 1; index > 0; --index) {
-        const std::size_t other = random.next() % (index + 1);
-        std::swap(order[index], order[other]);
-    }
-
-    // Store values in logical visit order.
-    std::vector<std::uint32_t> values(kNodeCount);
-    for (std::size_t index = 0; index < kNodeCount; ++index) {
-        values[index] = node_value(order[index]);
-    }
-    std::vector<std::uint32_t>().swap(order);
-
-    // Process the same visit sequence several times.
-    std::uint64_t checksum = 0;
-    for (int round = 0; round < kRounds; ++round) {
-        for (std::uint32_t value : values) {
-            checksum = update_checksum(checksum, value);
+    std::vector<std::uint16_t> first(kWidth * kHeight);
+    std::vector<std::uint16_t> second(kWidth * kHeight);
+    for (std::size_t row = 0; row < kHeight; ++row) {
+        for (std::size_t column = 0; column < kWidth; ++column) {
+            first[row * kWidth + column] = pixel_value(row, column);
         }
     }
+    second = first;
 
-    std::cout << "checksum=" << checksum << '\n';
+    auto *source = &first;
+    auto *destination = &second;
+    for (int round = 0; round < kRounds; ++round) {
+        for (std::size_t row = 1; row + 1 < kHeight; ++row) {
+            for (std::size_t column = 1; column + 1 < kWidth; ++column) {
+                std::uint32_t sum = 0;
+                for (std::size_t kernel_row = row - 1; kernel_row <= row + 1;
+                     ++kernel_row) {
+                    for (std::size_t kernel_column = column - 1;
+                         kernel_column <= column + 1; ++kernel_column) {
+                        sum += (*source)[kernel_row * kWidth + kernel_column];
+                    }
+                }
+                (*destination)[row * kWidth + column] =
+                    static_cast<std::uint16_t>(sum / 9U);
+            }
+        }
+        std::swap(source, destination);
+    }
+
+    std::cout << "checksum=" << checksum(*source) << '\n';
     return 0;
 }

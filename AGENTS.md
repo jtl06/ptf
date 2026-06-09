@@ -16,7 +16,8 @@ The challenge loop is:
 - `pmystery.py`: compatibility entry point for the old command name.
 - `puzzles/<slug>/src/bad.cpp`: starter implementation.
 - `puzzles/<slug>/src/fixed.cpp`: reference implementation.
-- `work/<id>/solution.cpp`: learner-owned editable source, ignored by Git.
+- `work/<id>/bad_reference.cpp`: convenient copy of the current bad source.
+- `work/<id>/work.cpp`: learner-owned editable source, ignored by Git.
 - `build/<id>/`: generated binaries, ignored by Git.
 - `runs/<id>/`: profiler evidence and lab notes, ignored by Git.
 
@@ -28,23 +29,27 @@ All benchmark implementations use C++17 and compile with `g++`.
 ptf start 01
 ptf 01 work
 ptf strace 01 work
-# edit work/01/solution.cpp
+# edit work/01/work.cpp
 ptf check 01
 ```
 
-`ptf start` copies the starter into `work/<id>/solution.cpp` and creates a lab
-journal. Re-running it saves the current solution as a timestamped backup, then
-resets `solution.cpp` from the latest starter. Existing notes remain unchanged.
+`ptf start` copies the current bad source into both `bad_reference.cpp` and
+`work.cpp`, then creates a lab journal. Re-running it saves the current work
+source as a timestamped backup before refreshing both files. Existing notes
+remain unchanged.
+
+Legacy `solution.cpp` files are renamed to `work.cpp` when a work variant is
+first accessed.
 
 `ptf check`:
 
-1. Compiles the working solution.
+1. Compiles `work.cpp`.
 2. Compares its output with the reference output.
-3. Measures median starter, solution, and reference runtimes.
+3. Measures median starter, work, and reference runtimes.
 4. Grades the puzzle-specific speedup target.
 
 Profiling commands accept `bad`, `work`, and `fixed`. The `work` binary rebuilds
-when `solution.cpp` is newer than its binary.
+when `work.cpp` is newer than its binary.
 
 ## Commands
 
@@ -69,7 +74,7 @@ ptf reveal <id>
 Puzzle-first shortcuts:
 
 - `ptf 01` shows lesson 01.
-- `ptf 01 work` runs the learner solution.
+- `ptf 01 work` runs the learner work source.
 - `ptf 01 bad` runs the starter.
 
 ## Targets
@@ -94,11 +99,11 @@ Required targets control pass/fail; stretch goals recognize further optimization
 
 ### 02: Cache Maze
 
-- Starter follows a randomized dependent traversal through a large node vector.
-- Its order-sensitive checksum requires the exact logical visit sequence.
-- Learners may change physical layout and traversal mechanics.
-- Main evidence includes runtime, IPC, cache/TLB symptoms, and hot traversal
-  samples.
+- Starter repeatedly applies a 3x3 box blur to a row-major grayscale image.
+- Its inner loop advances down columns, creating a large memory stride.
+- The final checksum validates the complete output image.
+- Learners may change loop order, indexing, and temporary storage.
+- Main evidence includes runtime, IPC, cache/TLB symptoms, and blur-loop samples.
 
 ### 03: Branch Lottery
 
@@ -129,7 +134,7 @@ ptf compare 03
 ```
 
 For each puzzle, also validate the grader by starting a workspace, copying the
-reference algorithm into `solution.cpp`, and confirming `ptf check <id>` passes.
+reference algorithm into `work.cpp`, and confirming `ptf check <id>` passes.
 
 The project has been exercised on macOS for compilation and on the Linux x86
 hosts `alcidae` and `aethia`. Use `alcidae` or `aethia` for remote validation.
@@ -155,8 +160,8 @@ context.
 - Add new benchmarks as C++17 `bad.cpp` and `fixed.cpp` pairs.
 - Preserve learner files under `work/` during cleanup.
 - Preserve lab notes under `runs/` during cleanup.
-- Exclude generated inputs, binaries, evidence, and learner solutions from Git.
+- Exclude generated inputs, binaries, evidence, and learner work from Git.
 - Update the root README and puzzle lesson when changing the workflow.
 
 An Arm Performix backend may later collect Graviton-specific PMU evidence while
-using the same editable solution and grading flow.
+using the same editable work source and grading flow.

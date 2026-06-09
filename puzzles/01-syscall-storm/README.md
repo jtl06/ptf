@@ -19,13 +19,13 @@ The program counts newline characters in a deterministic text file. The starter
 produces the correct result and takes several seconds on a typical Linux
 machine.
 
-Create your editable solution:
+Create your editable workspace:
 
 ```sh
 ptf start 01
 ```
 
-Then investigate and optimize `work/01/solution.cpp`.
+Then investigate and optimize `work/01/work.cpp`.
 
 ## Suggested process
 
@@ -33,7 +33,7 @@ Then investigate and optimize `work/01/solution.cpp`.
 2. Predict which kernel interaction dominates runtime.
 3. Run `ptf strace 01 work`.
 4. Connect the dominant syscall count to a line of C++.
-5. Edit `work/01/solution.cpp`.
+5. Edit `work/01/work.cpp`.
 6. Repeat the run and `strace` measurements.
 7. Submit the result with `ptf check 01`.
 
