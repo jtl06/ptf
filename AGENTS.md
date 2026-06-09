@@ -72,12 +72,15 @@ Puzzle-first shortcuts:
 
 ## Targets
 
-- Puzzle 01, Syscall Storm: 10x speedup.
+- Puzzle 01, Syscall Storm: 100x required, greater than 1000x stretch.
 - Puzzle 02, Cache Maze: 4x speedup.
 - Puzzle 03, Branch Lottery: 1.5x speedup.
 
 Targets are relative to the starter measured during the same `check` command.
 Exact runtimes remain machine-dependent.
+
+Optional `stretch_speedup` metadata adds a separately reported stretch goal.
+Required targets control pass/fail; stretch goals recognize further optimization.
 
 ## Puzzle behavior
 

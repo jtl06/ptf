@@ -25,12 +25,16 @@ evidence needed to choose an effective code change.
 
 | ID | Challenge | Main tool | Target |
 |---|---|---|---|
-| 01 | Syscall Storm | `strace -c` | 10x faster than starter |
+| 01 | Syscall Storm | `strace -c` | 100x pass, >1000x stretch |
 | 02 | Cache Maze | `perf stat`, `perf record` | 4x faster than starter |
 | 03 | Branch Lottery | branch counters | 1.5x faster than starter |
 
 Targets use speedup relative to the starter on the same machine. This keeps the
 grading useful across Intel, AMD, Graviton 3, and Graviton 4 systems.
+
+Puzzle 01 has a stretch goal because buffered I/O can improve the pathological
+one-byte-read starter by several orders of magnitude. At millisecond runtimes,
+use the `strace -c` call count alongside timing results.
 
 ## Challenge workflow
 

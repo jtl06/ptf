@@ -7,8 +7,11 @@ C++ implementation.
 
 ## Performance target
 
-Reach at least **10x speedup** over the starter while printing the same newline
+Reach at least **100x speedup** over the starter while printing the same newline
 count.
+
+The stretch goal is to **exceed 1000x speedup**. Use `strace -c` to confirm that
+the result comes from reducing `read()` calls rather than timing noise.
 
 ## Assignment
 

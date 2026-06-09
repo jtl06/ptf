@@ -25,7 +25,8 @@ PUZZLES = {
         "objective": "Use strace to identify syscall overhead from tiny I/O operations.",
         "language": "cpp",
         "input": "input/data.txt",
-        "target_speedup": 10.0,
+        "target_speedup": 100.0,
+        "stretch_speedup": 1000.0,
         "profile_command": "strace",
         "quiz": [
             {
@@ -261,11 +262,17 @@ def median_runtime(puzzle_id: str, variant: str, runs: int) -> tuple[float, str]
 
 
 def command_list(_: argparse.Namespace) -> None:
-    print("ID  Name             Target   Learning objective")
-    print("--  ---------------  -------  ----------------------------------------------------------")
+    print("ID  Name             Required  Stretch  Learning objective")
+    print("--  ---------------  --------  -------  ----------------------------------------------------------")
     for puzzle_id, meta in PUZZLES.items():
+        stretch = (
+            f">{meta['stretch_speedup']:.0f}x"
+            if "stretch_speedup" in meta
+            else "-"
+        )
         print(
-            f"{puzzle_id}  {meta['name']:<15}  {meta['target_speedup']:>4.1f}x    {meta['objective']}"
+            f"{puzzle_id}  {meta['name']:<15}  {meta['target_speedup']:>6.1f}x  "
+            f"{stretch:>7}  {meta['objective']}"
         )
 
 
@@ -313,7 +320,9 @@ def command_compare(args: argparse.Namespace) -> None:
 
 def command_check(args: argparse.Namespace) -> None:
     puzzle_id = resolve_id(args.id)
-    target = float(PUZZLES[puzzle_id]["target_speedup"])
+    meta = PUZZLES[puzzle_id]
+    target = float(meta["target_speedup"])
+    stretch = meta.get("stretch_speedup")
     ensure_built(puzzle_id, "work")
 
     _, reference_output = timed_run(puzzle_id, "fixed", show_output=False)
@@ -336,12 +345,19 @@ def command_check(args: argparse.Namespace) -> None:
     print(f"reference median: {reference_time:.4f} s")
     print(f"speedup:          {speedup:.2f}x")
     print(f"target:           {target:.2f}x")
+    if stretch is not None:
+        print(f"stretch goal:     >{float(stretch):.2f}x")
     if speedup < target:
         print("Performance: FAIL")
         sys.stdout.flush()
         raise LabError("solution is correct but has not reached the performance target")
     print("Performance: PASS")
     print("Puzzle target met.")
+    if stretch is not None:
+        if speedup > float(stretch):
+            print("Stretch goal: PASS")
+        else:
+            print("Stretch goal: keep optimizing")
 
 
 def variant_run_dir(puzzle_id: str, variant: str) -> Path:
@@ -446,6 +462,8 @@ def command_lesson(args: argparse.Namespace) -> None:
     readme = puzzle_dir(puzzle_id) / "README.md"
     print(f"Learning objective: {meta['objective']}")
     print(f"Performance target: {meta['target_speedup']:.1f}x faster than the starter")
+    if "stretch_speedup" in meta:
+        print(f"Stretch goal: exceed {meta['stretch_speedup']:.1f}x speedup")
     print("Challenge loop: profile -> explain -> edit -> test -> measure -> repeat\n")
     print(readme.read_text(encoding="utf-8"))
 
@@ -489,6 +507,7 @@ JOURNAL_TEMPLATE = """# Lab notes: Puzzle {puzzle_id}
 Starter runtime:
 
 Performance target: {target:.1f}x speedup
+{stretch_line}
 
 ## Before profiling
 My hypothesis:
@@ -532,6 +551,11 @@ def create_journal(puzzle_id: str, variant: str) -> Path:
         JOURNAL_TEMPLATE.format(
             puzzle_id=puzzle_id,
             target=float(PUZZLES[puzzle_id]["target_speedup"]),
+            stretch_line=(
+                f"Stretch goal: exceed {float(PUZZLES[puzzle_id]['stretch_speedup']):.1f}x speedup"
+                if "stretch_speedup" in PUZZLES[puzzle_id]
+                else ""
+            ),
         ),
         encoding="utf-8",
     )
