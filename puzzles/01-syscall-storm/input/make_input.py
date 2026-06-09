@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 
 
-LINE = b"perf-mystery deterministic input: 0123456789 abcdefghijklmnopqrstuvwxyz\n"
+LINE = b"ptf deterministic benchmark data: 0123456789 abcdefghijklmnopqrstuvwxyz\n"
 
 
 def main() -> None:
@@ -30,4 +30,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

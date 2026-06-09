@@ -1,203 +1,91 @@
-# perf-mystery
+# ptf
 
-`perf-mystery` is a hands-on Linux performance lab inspired by the systems labs
-in CS:APP. Every puzzle starts with working C++ code that is too slow. Your job
-is to investigate the program, change the code, and meet a performance target
-while preserving the result.
+`ptf` is a small Linux performance lab inspired by the systems labs in CS:APP.
+Each puzzle gives you a correct but slow C++ program. Use `strace`, `perf`, and
+the source code to find the bottleneck, change the program, and meet a
+performance target without changing its result.
 
-The challenge loop is:
+The current puzzles cover excessive system calls, cache-unfriendly image
+convolution, and unpredictable branches.
 
-> profile -> explain -> edit -> test -> measure -> repeat
-
-Runtime tells you whether the target was met. `strace` and `perf` provide the
-evidence needed to choose an effective code change.
-
-## What you practice
-
-- Turning a runtime symptom into a testable bottleneck hypothesis.
-- Choosing a profiling tool that can confirm or reject that hypothesis.
-- Connecting syscall counts and hardware counters to C++ source code.
-- Editing data access, control flow, and I/O behavior.
-- Preserving correctness during optimization.
-- Iterating until an objective performance target is reached.
-
-## Challenges
-
-| ID | Challenge | Main tool | Target |
+| ID | Puzzle | Main evidence | Target |
 |---|---|---|---|
-| 01 | Syscall Storm | `strace -c` | 100x pass, >1000x stretch |
-| 02 | Cache Maze | `perf stat`, `perf record` | 4x faster than starter |
-| 03 | Branch Lottery | branch counters | 1.5x faster than starter |
+| 01 | Syscall Storm | `strace -c` | 100x speedup, >1000x stretch |
+| 02 | Cache Maze | `perf stat`, `perf record` | 4x speedup |
+| 03 | Branch Lottery | branch counters | 1.5x speedup |
 
-Targets use speedup relative to the starter on the same machine. This keeps the
-grading useful across Intel, AMD, Graviton 3, and Graviton 4 systems.
-
-Puzzle 01 has a stretch goal because buffered I/O can improve the pathological
-one-byte-read starter by several orders of magnitude. At millisecond runtimes,
-use the `strace -c` call count alongside timing results.
-
-## Challenge workflow
-
-Start a puzzle:
-
-```sh
-ptf start 01
-```
-
-This creates:
-
-```text
-work/01/bad_reference.cpp
-work/01/work.cpp
-runs/01/work/lab.md
-```
-
-`bad_reference.cpp` preserves the original slow code for quick comparison.
-`work.cpp` begins as the same code and is the file you edit. Work through the
-following cycle:
-
-1. Run the starter and record its behavior.
-2. Profile the work variant with the tool suggested by your hypothesis.
-3. Inspect and edit `work/<id>/work.cpp`.
-4. Run or profile the `work` variant again.
-5. Grade correctness and performance with `ptf check <id>`.
-6. Repeat until the target passes.
-
-Running `ptf start <id>` again resets `work.cpp` from the current starter.
-The previous work is saved beside it with a timestamped `work.backup-*`
-name. It also refreshes `bad_reference.cpp`. Existing lab notes remain
-unchanged.
-
-Older workspaces using `solution.cpp` are renamed to `work.cpp` automatically.
-
-Example:
-
-```sh
-ptf start 01
-ptf 01 work
-ptf strace 01 work
-
-# Edit work/01/work.cpp
-
-ptf 01 work
-ptf strace 01 work
-ptf check 01
-```
-
-`ptf check` performs three steps:
-
-1. Compiles `work.cpp`.
-2. Compares its output with the reference result.
-3. Measures median runtime and grades the required speedup.
-
-Use more or fewer timing runs when needed:
-
-```sh
-ptf check 02 --runs 5
-```
-
-## Tools and hints
-
-The profiling commands accept `bad`, `work`, and `fixed` variants:
-
-```sh
-ptf strace 01 work
-ptf perf-stat 02 work
-ptf perf-record 02 work
-perf report -i runs/02/work/perf.data
-```
-
-Progressive hints guide the investigation while leaving the code change to you:
-
-```sh
-ptf hint 02
-ptf hint 02 2
-ptf hint 02 3
-```
-
-After completing the challenge:
-
-```sh
-ptf diagnose 02
-ptf reveal 02
-```
-
-`reveal` explains the reference diagnosis and optimization.
-
-## Commands
-
-Run `ptf help` for a compact workflow and command summary.
-
-```text
-ptf help
-ptf list
-ptf start <id>                    Reset work/<id>/work.cpp
-ptf lesson <id>
-ptf run <id> <bad|work|fixed>
-ptf strace <id> <bad|work|fixed>
-ptf perf-stat <id> <bad|work|fixed>
-ptf perf-record <id> <bad|work|fixed>
-ptf check <id> [--runs N]
-ptf hint <id> [level]
-ptf diagnose <id>
-ptf reveal <id>
-```
-
-Puzzle-first shortcuts are available:
-
-```sh
-ptf 01          # show lesson 01
-ptf 01 work     # run your work
-ptf 01 bad      # run the starter
-```
-
-Puzzle IDs accept `1`, `01`, or a full slug such as `01-syscall-storm`.
-
-## Requirements
-
-- Linux
-- Python 3
-- `g++` with C++17 support
-- `make`
-- `strace`
-- Linux `perf`
-
-The CLI reports missing tools, restricted `perf_event_paranoid` settings, and
-unavailable PMU events.
+Targets are measured against the starter on the same machine.
 
 ## Setup
+
+You need Linux, Python 3, `g++`, and `make`. The profiling commands also require
+`strace` and Linux `perf`.
 
 ```sh
 git clone https://github.com/jtl06/ptf.git
 cd ptf
 make
 make install
-ptf list
 ```
 
-`make install` creates `~/.local/bin/ptf` as a symlink to the checkout. Ensure
-`~/.local/bin` is on `PATH`.
+`make install` links `ptf` into `~/.local/bin`. Add that directory to `PATH` if
+your shell does not already use it.
 
-Generated binaries live in `build/`. Editable work sources live in `work/`.
-Profiling evidence and notes live in `runs/`. Git ignores all three directories
-except for their placeholder files.
+## Trying a puzzle
 
-## Comparing architectures
+Start with the lesson and create an editable copy:
 
-Run the same work source and grading command on each machine. Record:
+```sh
+ptf lesson 02
+ptf start 02
+```
 
-- CPU model and architecture
-- Kernel version
-- Compiler version
-- Virtual machine or container environment
-- `perf_event_paranoid` value
-- Available PMU events
+This creates `work/02/work.cpp` and a copy of the original program at
+`work/02/bad_reference.cpp`.
 
-Counter availability and exact values vary by processor. The source-level
-challenge remains the same, while the evidence shows how each architecture
-responds to the optimization.
+Run and profile your copy:
 
-## Future direction
+```sh
+ptf 02 work
+ptf perf-stat 02 work
+ptf perf-record 02 work
+perf report -i runs/02/work/perf.data
+```
 
-An Arm Performix backend could add Graviton-focused event collection and guided
-analysis while preserving the same editable C++ challenge and grading workflow.
+Edit `work/02/work.cpp`, repeat the measurements, and grade it:
+
+```sh
+ptf check 02
+```
+
+`ptf check` compares the output with the reference implementation and measures
+the median speedup over the starter. Use `--runs 5` when you want a steadier
+timing result.
+
+Running `ptf start 02` again resets `work.cpp`. The previous file is saved as a
+timestamped `work.backup-*.cpp`. Lab notes in `runs/02/work/lab.md` are kept.
+
+## Commands
+
+```text
+ptf help
+ptf list
+ptf lesson <id>
+ptf start <id>
+ptf <id> <bad|work|fixed>
+ptf strace <id> <bad|work|fixed>
+ptf perf-stat <id> <bad|work|fixed>
+ptf perf-record <id> <bad|work|fixed>
+ptf check <id> [--runs N]
+ptf hint <id> [1|2|3]
+ptf diagnose <id>
+ptf reveal <id>
+```
+
+Use `bad` for the starter, `work` for your code, and `fixed` for the reference
+implementation. Puzzle IDs may be written as `2`, `02`, or
+`02-cache-maze`.
+
+Profiler output and lab notes are stored under `runs/`. Build products are
+stored under `build/`. If hardware counters are unavailable, `ptf` reports the
+relevant `perf_event_paranoid`, kernel, or PMU issue.

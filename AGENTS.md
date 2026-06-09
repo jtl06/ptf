@@ -1,10 +1,10 @@
-# perf-mystery Agent Guide
+# ptf Agent Guide
 
 ## Purpose
 
-`perf-mystery` is an active Linux performance lab inspired by CS:APP systems
-labs. Learners receive correct but slow C++ starter code. They profile it, edit
-their own copy, and submit it to a correctness and performance grader.
+`ptf` is an active Linux performance lab inspired by CS:APP systems labs.
+Learners receive correct but slow C++ starter code. They profile it, edit their
+own copy, and submit it to a correctness and performance grader.
 
 The challenge loop is:
 
@@ -13,7 +13,6 @@ The challenge loop is:
 ## Main paths
 
 - `ptf`: CLI, puzzle metadata, build logic, profilers, and grader.
-- `pmystery.py`: compatibility entry point for the old command name.
 - `puzzles/<slug>/src/bad.cpp`: starter implementation.
 - `puzzles/<slug>/src/fixed.cpp`: reference implementation.
 - `work/<id>/bad_reference.cpp`: convenient copy of the current bad source.
