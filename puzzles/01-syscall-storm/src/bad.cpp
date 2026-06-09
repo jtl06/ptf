@@ -1,3 +1,5 @@
+// Reads a text file one byte at a time and prints its newline count.
+
 #include <errno.h>
 #include <fcntl.h>
 #include <cstdint>

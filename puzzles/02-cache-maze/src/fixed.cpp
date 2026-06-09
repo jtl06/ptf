@@ -1,3 +1,6 @@
+// Stores generated values in an array, sums them repeatedly, and prints the
+// resulting checksum.
+
 #include <cstddef>
 #include <cstdint>
 #include <iostream>

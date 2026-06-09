@@ -1,3 +1,6 @@
+// Links shuffled node indices into a cycle, traverses it repeatedly, and
+// prints the sum of the visited values.
+
 #include <cstddef>
 #include <cstdint>
 #include <iostream>

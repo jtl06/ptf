@@ -1,3 +1,6 @@
+// Generates deterministic values, selects each value or its complement with a
+// bit mask, and prints the accumulated checksum.
+
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
