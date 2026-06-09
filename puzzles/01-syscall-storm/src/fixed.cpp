@@ -18,13 +18,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Each syscall transfers a useful block of data into user space.
+    // Read into a fixed-size buffer.
     unsigned char buffer[BUFFER_SIZE];
     std::uint64_t newlines = 0;
     for (;;) {
         ssize_t bytes_read = read(fd, buffer, sizeof(buffer));
         if (bytes_read > 0) {
-            // Count only the bytes returned by this read.
             for (ssize_t index = 0; index < bytes_read; ++index) {
                 newlines += (buffer[index] == '\n');
             }

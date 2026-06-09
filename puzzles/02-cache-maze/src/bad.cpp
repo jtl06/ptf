@@ -11,12 +11,12 @@ constexpr std::size_t kNodeCount = 3U * 1024U * 1024U;
 constexpr int kRounds = 8;
 
 struct Node {
-    // next stores an index so the vector owns all nodes in one allocation.
+    // Index of the next node.
     std::uint32_t next;
     std::uint32_t value;
 };
 
-// A small deterministic generator keeps benchmark inputs reproducible.
+// Deterministic pseudo-random generator.
 class XorShift32 {
   public:
     explicit XorShift32(std::uint32_t state) : state_(state) {}
@@ -45,7 +45,7 @@ int main() {
     std::vector<std::uint32_t> order(kNodeCount);
     std::iota(order.begin(), order.end(), 0U);
 
-    // Shuffle node indices, then connect them into one cycle.
+    // Create a shuffled traversal order.
     XorShift32 random(UINT32_C(0x6d2b79f5));
     for (std::size_t index = kNodeCount - 1; index > 0; --index) {
         const std::size_t other = random.next() % (index + 1);
@@ -63,14 +63,13 @@ int main() {
     const std::uint32_t head = order[0];
     std::vector<std::uint32_t>().swap(order);
 
-    // The repeated traversal is the hot region to inspect with perf.
+    // Traverse the cycle several times.
     std::uint64_t checksum = 0;
     for (int round = 0; round < kRounds; ++round) {
         std::uint32_t current = head;
         for (std::size_t visited = 0; visited < kNodeCount; ++visited) {
             const Node &node = nodes[current];
             checksum += node.value;
-            // The current node determines the address of the next load.
             current = node.next;
         }
     }
