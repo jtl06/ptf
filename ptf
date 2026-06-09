@@ -276,6 +276,40 @@ def command_list(_: argparse.Namespace) -> None:
         )
 
 
+def command_help(_: argparse.Namespace) -> None:
+    print(
+        """ptf - Linux performance optimization challenges
+
+Workflow:
+  ptf list                         List challenges and targets
+  ptf start <id>                   Create work/<id>/solution.cpp
+  ptf <id> work                    Build and run your solution
+  ptf strace <id> work             Summarize system calls
+  ptf perf-stat <id> work          Collect performance counters
+  ptf perf-record <id> work        Record samples for perf report
+  ptf check <id> [--runs N]        Grade correctness and speedup
+
+Guidance:
+  ptf lesson <id>                  Show the assignment and target
+  ptf hint <id> [1|2|3]            Show a progressive hint
+  ptf diagnose <id>                Take the diagnosis quiz
+  ptf reveal <id>                  Show the reference explanation
+  ptf journal <id> work            Create lab notes
+
+Baselines:
+  ptf <id> bad                     Run the starter
+  ptf <id> fixed                   Run the reference
+  ptf compare <id>                 Compare starter and reference
+  ptf build <id>                   Build starter and reference
+
+Shortcuts:
+  ptf 01                           Show lesson 01
+  ptf 01 work                      Run your Puzzle 01 solution
+
+Use 'ptf <command> --help' for command arguments."""
+    )
+
+
 def command_build(args: argparse.Namespace) -> None:
     build_puzzle(resolve_id(args.id))
 
@@ -584,6 +618,9 @@ def make_parser() -> argparse.ArgumentParser:
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    help_parser = subparsers.add_parser("help", help="show the workflow and command summary")
+    help_parser.set_defaults(handler=command_help)
 
     list_parser = subparsers.add_parser("list", help="list available puzzles")
     list_parser.set_defaults(handler=command_list)

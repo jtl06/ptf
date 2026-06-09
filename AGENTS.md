@@ -48,6 +48,7 @@ when `solution.cpp` is newer than its binary.
 ## Commands
 
 ```text
+ptf help
 ptf list
 ptf start <id>
 ptf build <id>

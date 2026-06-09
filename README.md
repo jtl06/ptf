@@ -117,7 +117,10 @@ ptf reveal 02
 
 ## Commands
 
+Run `ptf help` for a compact workflow and command summary.
+
 ```text
+ptf help
 ptf list
 ptf start <id>
 ptf lesson <id>
